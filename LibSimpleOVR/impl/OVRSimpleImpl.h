@@ -13,27 +13,13 @@
 
 #pragma once
 
+#include "../OVRSimpleTypes.h"
 #include <boost/thread.hpp>
 #include <boost/asio.hpp>
 #include <boost/smart_ptr.hpp>
 
-//#define DLL_PUBLIC __attribute__ ((visibility ("default")))
-//#define DLL_LOCAL  __attribute__ ((visibility ("hidden")))
-#define DLL_PUBLIC
-#define DLL_LOCAL
-
-typedef void* HANDLE_SENSOR;
-typedef void (*SENSOR_CALLBACK)(const uint8_t *, size_t length);
-
-struct DisplayInfo {
-    uint8_t distortion;
-    uint16_t xres, yres;
-    uint32_t xsize, ysize;
-    uint32_t center;
-    uint32_t sep;
-    uint32_t zeye[2];
-    float distortionCoefficients[6];
-};
+#define DLL_PUBLIC __attribute__ ((visibility ("default")))
+#define DLL_LOCAL  __attribute__ ((visibility ("hidden")))
 
 namespace OVR {
 namespace Simple {
@@ -71,6 +57,7 @@ public:
 
     virtual void registerCallback(HANDLE_SENSOR, SENSOR_CALLBACK) = 0;
     virtual void getDisplayInfo(HANDLE_SENSOR sensor, DisplayInfo * result);
+
 };
 
 class sensor {
@@ -86,6 +73,7 @@ protected:
     bool sendKeepAlive(short duration = 3 * 1000);
     void onTimer(const boost::system::error_code& error);
     void onError(const boost::system::error_code& error);
+    static void decodeTrackerBuffer(const uint8_t * data, TrackerMessage & result);
 
 protected:
     virtual bool setFeatureReport(uint8_t* data, size_t length) = 0;
@@ -95,6 +83,7 @@ protected:
 public:
     virtual void registerCallback(SENSOR_CALLBACK callback) = 0;
     virtual void getDisplayInfo(DisplayInfo * result);
+
 };
 
 

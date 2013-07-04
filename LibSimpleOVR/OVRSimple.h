@@ -13,34 +13,7 @@
  *************************************************************************************/
 
 #pragma once
-
-#include <stdint.h>
-
-typedef void* HANDLE_SENSOR;
-typedef void (*SENSOR_CALLBACK)(const unsigned char *, unsigned int);
-
-struct SensorRange {
-    // Maximum detected acceleration in m/s^2. Up to 8*G equivalent support guaranteed,
-    // where G is ~9.81 m/s^2.
-    // Oculus DK1 HW has thresholds near: 2, 4 (default), 8, 16 G.
-    float MaxAcceleration;
-    // Maximum detected angular velocity in rad/s. Up to 8*Pi support guaranteed.
-    // Oculus DK1 HW thresholds near: 1, 2, 4, 8 Pi (default).
-    float MaxRotationRate;
-    // Maximum detectable Magnetic field strength in Gauss. Up to 2.5 Gauss support guaranteed.
-    // Oculus DK1 HW thresholds near: 0.88, 1.3, 1.9, 2.5 gauss.
-    float MaxMagneticField;
-};
-
-struct DisplayInfo {
-    uint8_t distortion;
-    uint16_t xres, yres;
-    uint32_t xsize, ysize;
-    uint32_t center;
-    uint32_t sep;
-    uint32_t zeye[2];
-    float distortionCoefficients[6];
-};
+#include "OVRSimpleTypes.h"
 
 extern "C" {
 

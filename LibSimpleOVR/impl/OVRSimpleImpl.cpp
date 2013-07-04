@@ -4,9 +4,6 @@ namespace OVR {
 
 namespace Simple {
 
-#define HID_BUFFER_SIZE 1024
-static uint8_t HID_BUFFER[HID_BUFFER_SIZE];
-
 impl::impl() :
         service(), work(service), timer(service), thread_(boost::bind(&impl::run, this)) {
 }
@@ -58,18 +55,18 @@ sensor::~sensor() {
 }
 
 bool sensor::sendKeepAlive(short duration) {
-    memset(HID_BUFFER, 0, HID_BUFFER_SIZE);
-    HID_BUFFER[0] = 8;
-    static short commandId = 0;
-    memcpy(HID_BUFFER + 3, &duration, sizeof(duration));
-    return setFeatureReport(HID_BUFFER, 5);
+    static uint8_t KEEP_ALIVE_BUFFER[5];
+    KEEP_ALIVE_BUFFER[0] = 8;
+    memcpy(KEEP_ALIVE_BUFFER + 3, &duration, sizeof(duration));
+    return setFeatureReport(KEEP_ALIVE_BUFFER, 5);
 }
 
 void sensor::getDisplayInfo(DisplayInfo * result) {
-    memset(HID_BUFFER, 0, HID_BUFFER_SIZE);
-    HID_BUFFER[0] = 9;
-    getFeatureReport(HID_BUFFER, 56);
-    memcpy(result, HID_BUFFER + 2, sizeof(DisplayInfo));
+    static uint8_t DISPLAY_INFO_BUFFER[56];
+    memset(DISPLAY_INFO_BUFFER, 0, 56);
+    DISPLAY_INFO_BUFFER[0] = 9;
+    getFeatureReport(DISPLAY_INFO_BUFFER, 56);
+    memcpy(result, DISPLAY_INFO_BUFFER + 2, sizeof(DisplayInfo));
 }
 
 void sensor::onError(const boost::system::error_code& error) {
@@ -91,8 +88,35 @@ void sensor::onTimer(const boost::system::error_code& error) {
     timer.async_wait(boost::bind(&sensor::onTimer, this, _1));
 }
 
+static void unpackSensor(const uint8_t * buffer, vector3_16_t & result) {
+    // Sign extending trick
+    // from http://graphics.stanford.edu/~seander/bithacks.html#FixedSignExtend
+    struct {int32_t x:21;} s;
+
+    result.x = s.x = (buffer[0] << 13) | (buffer[1] << 5) | ((buffer[2] & 0xF8) >> 3);
+    result.y = s.x = ((buffer[2] & 0x07) << 18) | (buffer[3] << 10) | (buffer[4] << 2) |
+               ((buffer[5] & 0xC0) >> 6);
+    result.z = s.x = ((buffer[5] & 0x3F) << 15) | (buffer[6] << 7) | (buffer[7] >> 1);
 }
+
+void sensor::decodeTrackerBuffer(const uint8_t * data, TrackerMessage & result) {
+    memset(&result, 0, sizeof(TrackerMessage));
+    // Need to fix endian-ness here.
+    memcpy(&result, data, 8);  // Copy type, count, lastCommandId, and temperature
+    data += 8;
+    for (int i = 0; i < 3; ++i) {
+        unpackSensor(data, result.samples[i].accel);
+        data += sizeof(vector3_16_t);
+        unpackSensor(data, result.samples[i].gyro);
+        data += sizeof(vector3_16_t);
+    }
+    memcpy(&result.mag, data, sizeof(vector3_16_t));
+
 }
+
+} // namespace Simple
+
+} // namespace OVR
 
 using namespace OVR::Simple;
 
@@ -125,7 +149,6 @@ DLL_PUBLIC HANDLE_SENSOR * ovrEnumerateSensors() {
     boost::mutex::scoped_lock lock(GLOBAL_MUTEX);
     impl * impl = GLOBAL_IMPL.get();
     return impl->enumerateSensors();
-
 }
 
 DLL_PUBLIC void ovrSensorRegisterCallback(HANDLE_SENSOR sensor, SENSOR_CALLBACK callback) {
@@ -139,52 +162,5 @@ DLL_PUBLIC void ovrGetDisplayInfo(HANDLE_SENSOR sensor, DisplayInfo * result) {
     impl * impl = GLOBAL_IMPL.get();
     impl->getDisplayInfo(sensor, result);
 }
-
-//
-//    public DisplayInfo() {
-//        super(FEATURE_ID, FEATURE_SIZE);
-//    }
-//
-//    public DisplayInfo(HIDDevice device) throws IOException {
-//        super(FEATURE_ID, FEATURE_SIZE, device);
-//    }
-//
-//    @Override
-//    protected void parse(ByteBuffer buffer) {
-//        buffer.position(1);
-//        commandId = buffer.getShort();
-//        distortion = buffer.get();
-//        xres = buffer.getShort();
-//        yres = buffer.getShort();
-//        xsize = buffer.getInt();
-//        ysize = buffer.getInt();
-//        center = buffer.getInt();
-//        sep = buffer.getInt();
-//        zeye = new int[2];
-//        buffer.asIntBuffer().get(zeye);
-//        buffer.position(buffer.position() + 8);
-//        distortionCoefficients = new float[6];
-//        buffer.asFloatBuffer().get(distortionCoefficients);
-//        buffer.position(buffer.position() + 8);
-//    }
-//
-//    @Override
-//    protected void pack(ByteBuffer buffer) {
-//        buffer.putShort(commandId);
-//        buffer.put(distortion);
-//        buffer.putShort(xres);
-//        buffer.putShort(yres);
-//        buffer.putInt(xsize);
-//        buffer.putInt(ysize);
-//        buffer.putInt(center);
-//        buffer.putInt(sep);
-//        for (int i = 0; i < 2; ++i) {
-//            buffer.putInt(zeye[i]);
-//        }
-//        for (int i = 0; i < 6; ++i) {
-//            buffer.putFloat(distortionCoefficients[i]);
-//        }
-//
-
 
 }

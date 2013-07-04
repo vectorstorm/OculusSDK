@@ -77,17 +77,18 @@ private:
     }
 
     void processReadResult(const boost::system::error_code& error, std::size_t length) {
-        cout << "read "  << length << endl;
+        static TrackerMessage message;
         if (error) {
             onError(error);
             return;
         }
 
         if (length) {
-            const unsigned char* p1 = boost::asio::buffer_cast<const unsigned char*>(read_buf.data());
+            const uint8_t* p1 = boost::asio::buffer_cast<const unsigned char*>(read_buf.data());
             // We've got data.
+            decodeTrackerBuffer(p1, message);
             if (callback) {
-                (*callback)(p1, length);
+                (*callback)(message);
             }
             read_buf.consume(length);
         }
