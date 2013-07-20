@@ -40,6 +40,7 @@ set( CORE_SOURCES
 	)
 
 if( WIN32 )
+	add_definitions(-DUNICODE -D_UNICODE)
 	set( PLATFORM_SOURCES
 		Src/Kernel/OVR_ThreadsWinAPI.cpp 
 		Src/OVR_Win32_DeviceManager.cpp
